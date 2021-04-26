@@ -9,5 +9,5 @@ void main()	{
 	vec4 image = texture2D(uImage, vUv);
 
 	gl_FragColor = image;
-	gl_FragColor.b += uHoverState * sin(uTime * 3.0) * 0.3;
+	gl_FragColor.r += uHoverState * vDist * 0.4;
 }
