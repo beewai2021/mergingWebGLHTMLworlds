@@ -45199,9 +45199,9 @@ TweenMaxWithCSS = gsapWithCSS.core.Tween;
 exports.TweenMax = TweenMaxWithCSS;
 exports.default = exports.gsap = gsapWithCSS;
 },{"./gsap-core.js":"node_modules/gsap/gsap-core.js","./CSSPlugin.js":"node_modules/gsap/CSSPlugin.js"}],"js/shader/fragment.glsl":[function(require,module,exports) {
-module.exports = "#define GLSLIFY 1\nuniform float uTime;\nuniform sampler2D uImage;\n\nvarying vec2 vUv;\nvarying float vDist;\n\nvoid main()\t{\n\tvec4 image = texture2D(uImage, vUv);\n\n\tgl_FragColor = image;\n\t// gl_FragColor = vec4(vDist, 0.0, 0.0, 1.0);\n}\n";
+module.exports = "#define GLSLIFY 1\nuniform float uTime;\nuniform sampler2D uImage;\nuniform float uHoverState;\n\nvarying vec2 vUv;\nvarying float vDist;\n\nvoid main()\t{\n\tvec4 image = texture2D(uImage, vUv);\n\n\tgl_FragColor = image;\n\tgl_FragColor.b += uHoverState * sin(uTime * 3.0) * 0.3;\n}\n";
 },{}],"js/shader/vertex.glsl":[function(require,module,exports) {
-module.exports = "#define GLSLIFY 1\nuniform vec2 uHover;\nuniform float uTime;\nuniform float uHoverState;\n\nvarying vec2 vUv;\nvarying float vDist;\n\nvoid main() {\n  vUv = uv;\n  vDist = distance(vUv, uHover);\n\n  vec3 newPos = position;\n  newPos.z += sin(vDist * 10.0 + uTime) * 7.0 * uHoverState;\n\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);\n}\n";
+module.exports = "#define GLSLIFY 1\nuniform vec2 uHover;\nuniform float uTime;\nuniform float uHoverState;\n\nvarying vec2 vUv;\nvarying float vDist;\n\nvoid main() {\n  vUv = uv;\n  vDist = distance(vUv, uHover);\n\n  vec3 newPos = position;\n  newPos.z += sin(vDist * 8.0) * 10.0 * uHoverState;\n\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);\n}\n";
 },{}],"js/app.js":[function(require,module,exports) {
 "use strict";
 

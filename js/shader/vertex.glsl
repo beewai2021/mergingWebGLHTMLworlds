@@ -10,7 +10,7 @@ void main() {
   vDist = distance(vUv, uHover);
 
   vec3 newPos = position;
-  newPos.z += sin(vDist * 10.0 + uTime) * 7.0 * uHoverState;
+  newPos.z += sin(vDist * 8.0) * 10.0 * uHoverState;
 
   gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
 }
