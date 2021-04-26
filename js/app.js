@@ -102,7 +102,7 @@ export default class Sketch {
         uHoverState: { value: 0 },
         uHover: { value: new THREE.Vector2(0.5, 0.5) },
       },
-      wireframe: false,
+      // wireframe: true,
       side: THREE.DoubleSide,
       vertexShader: vertexShader,
       fragmentShader: fragmentShader,
@@ -114,8 +114,8 @@ export default class Sketch {
       let geometry = new THREE.PlaneBufferGeometry(
         bounds.width,
         bounds.height,
-        15,
-        15
+        5,
+        5
       )
       let texture = new THREE.Texture(img)
       texture.needsUpdate = true
