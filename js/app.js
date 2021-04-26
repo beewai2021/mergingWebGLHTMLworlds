@@ -2,7 +2,7 @@ import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 // import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from "dat.gui"
-import gsap from "gsap"
+// import gsap from "gsap"
 
 import vertexShader from "./shader/vertex.glsl"
 import fragmentShader from "./shader/fragment.glsl"
@@ -64,11 +64,11 @@ export default class Sketch {
       },
       vertexShader: vertexShader,
       fragmentShader: fragmentShader,
-      extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable",
-      },
+      // extensions: {
+      //   derivatives: "#extension GL_OES_standard_derivatives : enable",
+      // },
       side: THREE.DoubleSide,
-      wireframe: true,
+      // wireframe: true,
       transparent: false,
     })
     this.plane = new THREE.Mesh(this.geometry, this.material)
