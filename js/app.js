@@ -1,79 +1,81 @@
 import * as THREE from "three"
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
-// import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as dat from "dat.gui"
-// import gsap from "gsap"
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import imagesLoaded from "imagesloaded"
 
-import vertexShader from "./shader/vertex.glsl"
 import fragmentShader from "./shader/fragment.glsl"
-import oceanTexture from "../img/ocean.jpg"
+import vertexShader from "./shader/vertex.glsl"
 
 export default class Sketch {
-  constructor(props) {
+  constructor(options) {
     this.scene = new THREE.Scene()
 
-    this.container = props.canvasContainer
+    this.container = options.dom
 
-    this.width = this.container.offsetWidth
     this.height = this.container.offsetHeight
+    this.width = this.container.offsetWidth
 
-    this.renderer = new THREE.WebGLRenderer()
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer = new THREE.WebGLRenderer({ alpha: true })
     this.renderer.setSize(this.width, this.height)
-    // this.renderer.setClearColor(0xeeeeee, 1)
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
     this.container.appendChild(this.renderer.domElement)
 
-    this.time = 0
-
     this.camera = new THREE.PerspectiveCamera(
       70,
-      this.width / this.height,
-      0.001,
-      1000
+      window.innerWidth / window.innerHeight,
+      100,
+      900
     )
+    this.cameraDistance = 500
+    this.camera.position.z = this.cameraDistance
+    // fov (vertical) height calculation
+    // 1. get half of fov angle
+    // 2. get full fov height (by multiplying by 2), and converting into degrees (from radians)
+    this.fovAngle = Math.atan(this.height / 2 / this.cameraDistance)
+    this.camera.fov = 2 * this.fovAngle * (180 / Math.PI)
 
-    // var frustumSize = 10;
-    // var aspect = window.innerWidth / window.innerHeight;
-    // this.camera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, -1000, 1000 );
-
-    this.camera.position.set(0, 0, 2)
+    this.images = [...document.querySelectorAll("img")]
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
 
     this.isPlaying = true
 
-    // setup scene
-    this.addObjects()
-    this.resize()
-    this.setupResize()
-    // this.settings();
-    this.render()
+    this.time = 0
+
+    this.currentScroll = 0
+
+    const preloadImages = new Promise((resolve, reject) => {
+      imagesLoaded(document.querySelectorAll("img"), {}, resolve)
+    })
+
+    Promise.all([preloadImages]).then(() => {
+      this.addObjects()
+      this.resize()
+      this.render()
+      this.setupResize()
+      this.addImages()
+      this.setPosition()
+      // this.settings();
+
+      window.addEventListener("scroll", () => {
+        this.currentScroll = window.scrollY
+        this.setPosition()
+      })
+    })
   }
 
-  addObjects() {
+  settings() {
     let that = this
+    this.settings = {
+      progress: 0,
+    }
+    this.gui = new dat.GUI()
+    this.gui.add(this.settings, "progress", 0, 1, 0.01)
+  }
 
-    // this.geometry = new THREE.PlaneBufferGeometry(1, 1, 40, 40)
-    this.geometry = new THREE.SphereBufferGeometry(1, 10, 10)
-    this.material = new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: { value: 0 },
-        uResolution: { value: new THREE.Vector4() },
-        uOceanTexture: { value: new THREE.TextureLoader().load(oceanTexture) },
-      },
-      vertexShader: vertexShader,
-      fragmentShader: fragmentShader,
-      // extensions: {
-      //   derivatives: "#extension GL_OES_standard_derivatives : enable",
-      // },
-      side: THREE.DoubleSide,
-      // wireframe: true,
-      transparent: false,
-    })
-    this.plane = new THREE.Mesh(this.geometry, this.material)
-
-    this.scene.add(this.plane)
+  setupResize() {
+    window.addEventListener("resize", this.resize.bind(this))
   }
 
   resize() {
@@ -86,8 +88,64 @@ export default class Sketch {
     this.camera.updateProjectionMatrix()
   }
 
-  setupResize() {
-    window.addEventListener("resize", this.resize.bind(this))
+  addObjects() {
+    let that = this
+    this.material = new THREE.ShaderMaterial({
+      extensions: {
+        derivatives: "#extension GL_OES_standard_derivatives : enable",
+      },
+      side: THREE.DoubleSide,
+      uniforms: {
+        uTime: { value: 0 },
+        uResolution: { value: new THREE.Vector4() },
+      },
+      // wireframe: true,
+      // transparent: true,
+      vertexShader: vertexShader,
+      fragmentShader: fragmentShader,
+    })
+
+    // this.geometry = new THREE.PlaneGeometry(200, 300, 10, 10)
+    // this.plane = new THREE.Mesh(this.geometry, this.material)
+    // this.scene.add(this.plane)
+  }
+
+  addImages() {
+    this.imageStore = this.images.map((img) => {
+      let bounds = img.getBoundingClientRect()
+
+      let geometry = new THREE.PlaneBufferGeometry(
+        bounds.width,
+        bounds.height,
+        4,
+        4
+      )
+      let texture = new THREE.Texture(img)
+      texture.needsUpdate = true
+      let material = new THREE.MeshBasicMaterial({
+        map: texture,
+      })
+      let mesh = new THREE.Mesh(geometry, material)
+
+      this.scene.add(mesh)
+
+      return {
+        img: img,
+        mesh: mesh,
+        top: bounds.top,
+        left: bounds.left,
+        height: bounds.height,
+        width: bounds.width,
+      }
+    })
+  }
+
+  setPosition() {
+    this.imageStore.forEach((imgObj) => {
+      imgObj.mesh.position.x = imgObj.left - this.width / 2 + imgObj.width / 2
+      imgObj.mesh.position.y =
+        -imgObj.top + this.height / 2 - imgObj.height / 2 + this.currentScroll
+    })
   }
 
   play() {
@@ -101,23 +159,12 @@ export default class Sketch {
     this.isPlaying = false
   }
 
-  settings() {
-    let that = this
-
-    this.settings = {
-      progress: 0,
-    }
-
-    this.gui = new dat.GUI()
-    this.gui.add(this.settings, "progress", 0, 1, 0.01)
-  }
-
   render() {
     if (!this.isPlaying) return
 
-    this.time += 0.05
+    // this.time += 0.05
 
-    this.material.uniforms.uTime.value = this.time
+    // this.material.uniforms.uTime.value = this.time
 
     this.renderer.render(this.scene, this.camera)
 
@@ -126,5 +173,5 @@ export default class Sketch {
 }
 
 new Sketch({
-  canvasContainer: document.getElementById("container"),
+  dom: document.getElementById("container"),
 })
