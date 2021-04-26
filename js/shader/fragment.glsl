@@ -1,6 +1,12 @@
 uniform float uTime;
+uniform sampler2D uImage;
+
 varying vec2 vUv;
+varying float vDist;
 
 void main()	{
-	gl_FragColor = vec4(vUv, sin(uTime), 1.0);
+	vec4 image = texture2D(uImage, vUv);
+
+	gl_FragColor = image;
+	// gl_FragColor = vec4(vDist, 0.0, 0.0, 1.0);
 }

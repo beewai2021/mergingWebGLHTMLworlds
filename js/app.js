@@ -2,6 +2,7 @@ import * as THREE from "three"
 import * as dat from "dat.gui"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 import imagesLoaded from "imagesloaded"
+import gsap from "gsap"
 
 import fragmentShader from "./shader/fragment.glsl"
 import vertexShader from "./shader/vertex.glsl"
@@ -37,25 +38,30 @@ export default class Sketch {
 
     this.images = [...document.querySelectorAll("img")]
 
+    this.materials = []
+
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
 
     this.isPlaying = true
 
-    this.time = 0
+    this.clock = new THREE.Clock()
 
     this.currentScroll = 0
+
+    this.raycaster = new THREE.Raycaster()
+    this.mouse = new THREE.Vector2()
 
     const preloadImages = new Promise((resolve, reject) => {
       imagesLoaded(document.querySelectorAll("img"), {}, resolve)
     })
 
     Promise.all([preloadImages]).then(() => {
-      this.addObjects()
       this.resize()
       this.render()
       this.setupResize()
       this.addImages()
       this.setPosition()
+      this.mouseMovement()
       // this.settings();
 
       window.addEventListener("scroll", () => {
@@ -88,46 +94,54 @@ export default class Sketch {
     this.camera.updateProjectionMatrix()
   }
 
-  addObjects() {
-    let that = this
-    this.material = new THREE.ShaderMaterial({
-      extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable",
-      },
-      side: THREE.DoubleSide,
+  addImages() {
+    this.imageMaterial = new THREE.ShaderMaterial({
       uniforms: {
+        uImage: { value: 0 },
         uTime: { value: 0 },
-        uResolution: { value: new THREE.Vector4() },
+        uHoverState: { value: 0 },
+        uHover: { value: new THREE.Vector2(0.5, 0.5) },
       },
-      // wireframe: true,
-      // transparent: true,
+      wireframe: false,
+      side: THREE.DoubleSide,
       vertexShader: vertexShader,
       fragmentShader: fragmentShader,
     })
 
-    // this.geometry = new THREE.PlaneGeometry(200, 300, 10, 10)
-    // this.plane = new THREE.Mesh(this.geometry, this.material)
-    // this.scene.add(this.plane)
-  }
-
-  addImages() {
     this.imageStore = this.images.map((img) => {
       let bounds = img.getBoundingClientRect()
 
       let geometry = new THREE.PlaneBufferGeometry(
         bounds.width,
         bounds.height,
-        4,
-        4
+        15,
+        15
       )
       let texture = new THREE.Texture(img)
       texture.needsUpdate = true
-      let material = new THREE.MeshBasicMaterial({
-        map: texture,
-      })
+
+      let material = this.imageMaterial.clone()
+      this.materials.push(material)
+      material.uniforms.uImage.value = texture
+
       let mesh = new THREE.Mesh(geometry, material)
 
       this.scene.add(mesh)
+
+      img.addEventListener("mouseenter", () => {
+        gsap.to(material.uniforms.uHoverState, {
+          value: 1,
+          duration: 1,
+          ease: "expo.out",
+        })
+      })
+      img.addEventListener("mouseout", () => {
+        gsap.to(material.uniforms.uHoverState, {
+          value: 0,
+          duration: 1,
+          ease: "expo.out",
+        })
+      })
 
       return {
         img: img,
@@ -148,6 +162,26 @@ export default class Sketch {
     })
   }
 
+  mouseMovement() {
+    window.addEventListener(
+      "mousemove",
+      (event) => {
+        this.mouse.x = (event.clientX / this.width) * 2 - 1
+        this.mouse.y = -(event.clientY / this.height) * 2 + 1
+
+        this.raycaster.setFromCamera(this.mouse, this.camera)
+
+        const intersects = this.raycaster.intersectObjects(this.scene.children)
+
+        if (intersects.length > 0) {
+          let obj = intersects[0].object
+          obj.material.uniforms.uHover.value = intersects[0].uv
+        }
+      },
+      false
+    )
+  }
+
   play() {
     if (!this.isPlaying) {
       this.render()
@@ -162,9 +196,9 @@ export default class Sketch {
   render() {
     if (!this.isPlaying) return
 
-    // this.time += 0.05
-
-    // this.material.uniforms.uTime.value = this.time
+    this.materials.forEach((material) => {
+      material.uniforms.uTime.value = this.clock.getElapsedTime()
+    })
 
     this.renderer.render(this.scene, this.camera)
 
