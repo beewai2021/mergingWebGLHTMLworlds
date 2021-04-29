@@ -1,6 +1,10 @@
 import * as THREE from "three"
 import * as dat from "dat.gui"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js"
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js"
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js"
+// import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import imagesLoaded from "imagesloaded"
 import gsap from "gsap"
 
@@ -57,11 +61,12 @@ export default class Sketch {
 
     Promise.all([preloadImages]).then(() => {
       this.resize()
-      this.render()
       this.setupResize()
       this.addImages()
       this.setPosition()
       this.mouseMovement()
+      this.composerPass()
+      this.render()
       // this.settings();
 
       window.addEventListener("scroll", () => {
@@ -182,6 +187,50 @@ export default class Sketch {
     )
   }
 
+  composerPass() {
+    this.composer = new EffectComposer(this.renderer)
+    this.renderPass = new RenderPass(this.scene, this.camera)
+    this.composer.addPass(this.renderPass)
+
+    let counter = 0.0
+
+    this.myEffect = {
+      uniforms: {
+        tDiffuse: { value: null },
+        // scrollSpeed: { value: null },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        // uniform float scrollSpeed;
+        varying vec2 vUv;
+        
+        void main(){
+          vec2 newUV = vUv;
+
+          float area = smoothstep(0.4, 0.0, vUv.y);
+
+          newUV.x -= (vUv.x - 0.5) * 0.5 * area;
+          
+          gl_FragColor = texture2D(tDiffuse, newUV);
+          // gl_FragColor = vec4(area, 0.0, 0.0, 1.0);
+        }
+      `,
+    }
+
+    this.customPass = new ShaderPass(this.myEffect)
+    this.customPass.renderToScreen = true
+
+    this.composer.addPass(this.customPass)
+  }
+
   play() {
     if (!this.isPlaying) {
       this.render()
@@ -200,7 +249,8 @@ export default class Sketch {
       material.uniforms.uTime.value = this.clock.getElapsedTime()
     })
 
-    this.renderer.render(this.scene, this.camera)
+    // this.renderer.render(this.scene, this.camera)
+    this.composer.render()
 
     requestAnimationFrame(this.render.bind(this))
   }
